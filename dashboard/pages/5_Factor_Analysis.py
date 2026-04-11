@@ -81,7 +81,7 @@ with tab_pca:
     pca = PCAFactorModel(n_components=n_components, variance_threshold=var_threshold)
     pca.fit(portfolio.asset_returns)
 
-    n_needed = pca.n_components_for_variance(var_threshold)
+    n_needed = pca.n_components_for_variance()
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Components fitted",       n_components)
