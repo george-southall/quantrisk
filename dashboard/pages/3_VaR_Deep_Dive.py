@@ -34,7 +34,7 @@ n_sims     = col_c.select_slider(
 st.markdown("---")
 
 returns = portfolio.returns
-weights = list(portfolio.weights.values())
+weights = portfolio.weights  # dict[str, float] — required by monte_carlo_var and simulate_portfolio_paths
 
 # ── VaR numbers ────────────────────────────────────────────────────────────────
 h_var  = historical_var(returns, confidence, horizon)
