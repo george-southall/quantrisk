@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Callable
 
-import numpy as np
 import pandas as pd
 
 from quantrisk.config import settings
@@ -14,7 +13,7 @@ from quantrisk.portfolio.returns import (
     max_drawdown,
     max_drawdown_duration,
 )
-from quantrisk.risk.metrics import sharpe_ratio, sortino_ratio, calmar_ratio
+from quantrisk.risk.metrics import calmar_ratio, sharpe_ratio, sortino_ratio
 from quantrisk.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -137,7 +136,6 @@ class BacktestEngine:
         turnover_list: dict[pd.Timestamp, float] = {}
 
         current_weights = {t: 1.0 / len(tickers) for t in tickers}
-        prev_date = clean.index[self.estimation_window]
 
         for rb_date in rebalance_dates:
             # Estimation window: all data up to (not including) this rebalance
