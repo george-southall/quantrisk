@@ -172,12 +172,19 @@ def _fetch_ticker(
 
             # Flatten MultiIndex columns if present (yfinance >=0.2.x)
             if isinstance(raw.columns, pd.MultiIndex):
-                raw.columns = raw.columns.get_level_values(0)
+                # Level 0 may be price type or ticker depending on yfinance version
+                level0 = raw.columns.get_level_values(0).tolist()
+                if all(isinstance(v, str) and v in ("Open", "High", "Low", "Close", "Adj Close", "Volume") for v in level0):
+                    raw.columns = level0  # price types are level 0
+                else:
+                    raw.columns = raw.columns.get_level_values(1)  # tickers are level 1
 
             if use_cache:
                 _save_to_cache(ticker, raw)
 
-            return raw["Adj Close"].rename(ticker)
+            # Support both auto_adjust=False (Adj Close) and auto_adjust=True (Close)
+            price_col = "Adj Close" if "Adj Close" in raw.columns else "Close"
+            return raw[price_col].rename(ticker)
 
         except Exception as exc:
             wait = 2 ** attempt

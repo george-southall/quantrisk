@@ -95,9 +95,9 @@ class Portfolio:
         bench_col = self.benchmark if self.benchmark in prices.columns else None
         if bench_col:
             self._benchmark_prices = prices[bench_col]
-            prices = prices[self.tickers]
+            prices = prices.drop(columns=[bench_col], errors="ignore")
 
-        # Align tickers actually returned
+        # Align tickers actually returned — gracefully skip any that failed to download
         available = [t for t in self.tickers if t in prices.columns]
         missing = set(self.tickers) - set(available)
         if missing:
