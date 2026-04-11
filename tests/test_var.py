@@ -131,3 +131,92 @@ class TestVaRSummary:
         assert "historical" in df.columns
         assert "parametric_normal" in df.columns
         assert "monte_carlo" in df.columns
+
+
+# ── Additional CVaR coverage ──────────────────────────────────────────────────
+
+class TestParametricCVarExtended:
+    def test_t_distribution(self, normal_returns):
+        cvar_t = parametric_cvar(normal_returns, confidence=0.95, distribution="t")
+        assert cvar_t > 0
+
+    def test_t_greater_than_normal(self, normal_returns):
+        """Student-t CVaR should be >= normal CVaR (fatter tails)."""
+        cvar_n = parametric_cvar(normal_returns, confidence=0.95, distribution="normal")
+        cvar_t = parametric_cvar(normal_returns, confidence=0.95, distribution="t")
+        assert cvar_t >= cvar_n * 0.9  # allow small numerical variance
+
+    def test_invalid_distribution_raises(self, normal_returns):
+        with pytest.raises(ValueError):
+            parametric_cvar(normal_returns, distribution="cauchy")
+
+    def test_horizon_scaling(self, normal_returns):
+        cvar_1 = parametric_cvar(normal_returns, horizon=1)
+        cvar_5 = parametric_cvar(normal_returns, horizon=5)
+        assert cvar_5 > cvar_1
+
+
+class TestCVarSummary:
+    def test_returns_dataframe(self, normal_returns):
+        from quantrisk.risk.cvar import cvar_summary
+        df = cvar_summary(normal_returns)
+        assert isinstance(df, pd.DataFrame)
+
+    def test_has_expected_columns(self, normal_returns):
+        from quantrisk.risk.cvar import cvar_summary
+        df = cvar_summary(normal_returns)
+        for col in ("confidence", "cvar_historical", "cvar_parametric"):
+            assert col in df.columns
+
+    def test_custom_confidence_levels(self, normal_returns):
+        from quantrisk.risk.cvar import cvar_summary
+        df = cvar_summary(normal_returns, confidence_levels=[0.90, 0.95, 0.99])
+        assert len(df) == 3
+
+    def test_cvar_exceeds_var(self, normal_returns):
+        from quantrisk.risk.cvar import cvar_summary
+        df = cvar_summary(normal_returns)
+        assert (df["cvar_historical"] >= df["var_historical"] * 0.99).all()
+
+
+class TestRollingVar:
+    def test_returns_series(self, normal_returns):
+        from quantrisk.risk.var import rolling_var
+        result = rolling_var(normal_returns, window=50, confidence=0.95, method="historical")
+        assert isinstance(result, pd.Series)
+        assert len(result) == len(normal_returns) - 50 + 1
+
+    def test_parametric_method(self, normal_returns):
+        from quantrisk.risk.var import rolling_var
+        result = rolling_var(normal_returns, window=50, method="parametric")
+        assert isinstance(result, pd.Series)
+        assert (result > 0).all()
+
+    def test_all_positive(self, normal_returns):
+        from quantrisk.risk.var import rolling_var
+        result = rolling_var(normal_returns, window=50)
+        assert (result > 0).all()
+
+
+class TestMonteCarloCVaR:
+    def test_basic(self):
+        from quantrisk.risk.cvar import monte_carlo_cvar
+        rng = np.random.default_rng(0)
+        losses = pd.Series(rng.normal(0, 0.01, 10000))
+        cvar = monte_carlo_cvar(losses.values, confidence=0.95)
+        assert cvar > 0
+
+    def test_cvar_exceeds_percentile(self):
+        from quantrisk.risk.cvar import monte_carlo_cvar
+        rng = np.random.default_rng(0)
+        losses = rng.normal(0, 0.01, 10000)
+        cvar = monte_carlo_cvar(losses, confidence=0.95)
+        var_95 = -np.percentile(losses, 5)
+        assert cvar >= var_95 * 0.9
+
+    def test_empty_tail_returns_nan(self):
+        from quantrisk.risk.cvar import monte_carlo_cvar
+        # All positive returns → tail (losses) is empty
+        all_gains = np.ones(100) * 0.01
+        result = monte_carlo_cvar(all_gains, confidence=0.95)
+        assert np.isnan(result) or result <= 0

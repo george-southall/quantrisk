@@ -23,7 +23,7 @@ class TestReturnCalculations:
         r = simple_returns(prices).dropna()
         assert len(r) == 2
         assert abs(r.iloc[0] - 0.10) < 1e-9
-        assert abs(r.iloc[1] - (-99 / 110 + 1 - 1)) < 1e-9  # -0.1
+        assert abs(r.iloc[1] - ((99 - 110) / 110)) < 1e-9  # ≈ -0.1
 
     def test_log_returns_basic(self):
         prices = pd.Series([100.0, 110.0])
