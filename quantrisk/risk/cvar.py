@@ -66,7 +66,8 @@ def parametric_cvar(
         tail_prob = stats.t.cdf(q, df=df, loc=loc, scale=scale)
         # E[X | X < q] = integral numerically via scipy
         from scipy.integrate import quad
-        integrand = lambda x: x * stats.t.pdf(x, df=df, loc=loc, scale=scale)
+        def integrand(x):
+            return x * stats.t.pdf(x, df=df, loc=loc, scale=scale)
         integral, _ = quad(integrand, -np.inf, q)
         if tail_prob > 0:
             es = -(integral / tail_prob)

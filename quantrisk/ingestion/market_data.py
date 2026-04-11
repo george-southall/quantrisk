@@ -1,7 +1,7 @@
 """Market data fetcher with SQLite-backed caching and retry logic."""
 
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import pandas as pd
 import yfinance as yf
@@ -174,7 +174,8 @@ def _fetch_ticker(
             if isinstance(raw.columns, pd.MultiIndex):
                 # Level 0 may be price type or ticker depending on yfinance version
                 level0 = raw.columns.get_level_values(0).tolist()
-                if all(isinstance(v, str) and v in ("Open", "High", "Low", "Close", "Adj Close", "Volume") for v in level0):
+                price_types = {"Open", "High", "Low", "Close", "Adj Close", "Volume"}
+                if all(isinstance(v, str) and v in price_types for v in level0):
                     raw.columns = level0  # price types are level 0
                 else:
                     raw.columns = raw.columns.get_level_values(1)  # tickers are level 1

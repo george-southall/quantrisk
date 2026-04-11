@@ -9,7 +9,6 @@ Decomposes portfolio returns into:
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
 from quantrisk.factor_models.fama_french import FamaFrenchModel

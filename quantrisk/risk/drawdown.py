@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from quantrisk.portfolio.returns import cumulative_returns, drawdown_series
+from quantrisk.portfolio.returns import drawdown_series
 
 
 def drawdown_table(returns: pd.Series, top_n: int = 10) -> pd.DataFrame:
@@ -14,7 +14,6 @@ def drawdown_table(returns: pd.Series, top_n: int = 10) -> pd.DataFrame:
     Returns a DataFrame sorted by drawdown depth (worst first).
     """
     clean = returns.dropna()
-    wealth = cumulative_returns(clean)
     dd = drawdown_series(clean)
 
     events = []

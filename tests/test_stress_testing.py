@@ -3,13 +3,12 @@
 import pytest
 
 from quantrisk.stress_testing.historical_scenarios import (
+    SCENARIOS,
     apply_scenario,
     run_all_scenarios,
-    SCENARIOS,
 )
 from quantrisk.stress_testing.hypothetical import apply_hypothetical_shocks
-from quantrisk.stress_testing.monte_carlo import simulate_portfolio_paths, mc_var_cvar
-
+from quantrisk.stress_testing.monte_carlo import mc_var_cvar, simulate_portfolio_paths
 
 SAMPLE_WEIGHTS = {
     "AAPL": 0.15, "MSFT": 0.15, "JPM": 0.10,

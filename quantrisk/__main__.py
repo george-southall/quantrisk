@@ -9,7 +9,6 @@ Usage:
 import argparse
 import sys
 
-
 DEFAULT_TICKERS = ["AAPL", "MSFT", "JPM", "XOM", "GLD", "TLT", "EEM", "VNQ"]
 DEFAULT_WEIGHTS = [0.15, 0.15, 0.10, 0.10, 0.15, 0.15, 0.10, 0.10]
 DEFAULT_START = "2015-01-01"
