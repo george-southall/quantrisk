@@ -180,8 +180,8 @@ class RiskReport:
         self._cvar_table: pd.DataFrame | None = None
 
     def compute(self) -> "RiskReport":
-        from quantrisk.risk.var import var_summary
         from quantrisk.risk.cvar import cvar_summary
+        from quantrisk.risk.var import var_summary
 
         port_returns = self.portfolio.returns
         bench_returns = self.portfolio.benchmark_returns

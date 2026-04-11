@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from quantrisk.utils.logger import get_logger
 
@@ -113,7 +113,7 @@ class PCAFactorModel:
         ):
             marker = " <--" if i + 1 == n else ""
             print(f"  PC{i+1:<4} {ev:>10.1%} {cv:>12.1%}{marker}")
-        print(f"\n  Top asset loadings on PC1 (market factor):")
+        print("\n  Top asset loadings on PC1 (market factor):")
         pc1 = self.loadings["PC1"].sort_values(ascending=False)
         for ticker, val in pc1.items():
             bar = "+" * int(abs(val) * 20) if val > 0 else "-" * int(abs(val) * 20)

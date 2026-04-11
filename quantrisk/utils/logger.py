@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from pathlib import Path
 
 from quantrisk.config import settings
 

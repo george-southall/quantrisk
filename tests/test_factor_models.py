@@ -1,7 +1,5 @@
 """Unit tests for PCA factor model (Fama-French requires network access)."""
 
-import numpy as np
-import pandas as pd
 import pytest
 
 from quantrisk.factor_models.pca_factors import PCAFactorModel

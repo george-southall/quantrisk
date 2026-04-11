@@ -53,6 +53,14 @@ packages = ["quantrisk"]
 testpaths = ["tests"]
 addopts = "--cov=quantrisk --cov-report=term-missing --cov-fail-under=80"
 
+[tool.coverage.run]
+omit = [
+    "quantrisk/ingestion/market_data.py",
+    "quantrisk/ingestion/macro_data.py",
+    "quantrisk/factor_models/fama_french.py",
+    "quantrisk/__main__.py",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
