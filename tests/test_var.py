@@ -5,8 +5,8 @@ import pandas as pd
 import pytest
 from scipy import stats
 
-from quantrisk.risk.var import historical_var, parametric_var, monte_carlo_var, var_summary
 from quantrisk.risk.cvar import historical_cvar, parametric_cvar
+from quantrisk.risk.var import historical_var, monte_carlo_var, parametric_var, var_summary
 
 
 class TestHistoricalVaR:

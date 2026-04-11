@@ -5,15 +5,15 @@ import pandas as pd
 import pytest
 
 from quantrisk.portfolio.returns import (
-    simple_returns,
-    log_returns,
-    cumulative_returns,
     annualised_return,
     annualised_volatility,
+    cumulative_returns,
     downside_deviation,
+    excess_returns,
+    log_returns,
     max_drawdown,
     max_drawdown_duration,
-    excess_returns,
+    simple_returns,
 )
 
 

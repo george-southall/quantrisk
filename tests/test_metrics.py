@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from quantrisk.risk.drawdown import drawdown_table
 from quantrisk.risk.metrics import (
     alpha,
     beta,
@@ -14,8 +15,6 @@ from quantrisk.risk.metrics import (
     sortino_ratio,
     treynor_ratio,
 )
-from quantrisk.risk.drawdown import drawdown_table
-
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
@@ -51,10 +50,7 @@ class TestSharpeRatio:
 
     def test_higher_return_higher_sharpe(self):
         rf = 0.0
-        low  = pd.Series([0.0001] * 252)
-        high = pd.Series([0.0010] * 252)
-        # Both have the same vol (0), so this tests the vol=0 → nan path;
-        # use noisy series instead
+        # use noisy series so vol > 0
         rng = np.random.default_rng(0)
         noise = pd.Series(rng.normal(0, 0.01, 252))
         low_r  = noise + 0.0001
@@ -197,7 +193,6 @@ class MockPortfolio:
 class TestRiskReport:
     @pytest.fixture
     def mock_portfolio(self, positive_returns, benchmark_returns):
-        rng = np.random.default_rng(7)
         idx = positive_returns.index
         asset_df = pd.DataFrame(
             {"A": positive_returns.values, "B": benchmark_returns.values},

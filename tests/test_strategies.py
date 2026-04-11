@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from quantrisk.backtesting.engine import BacktestEngine, BacktestResult
+from quantrisk.backtesting.evaluation import TearsheetEvaluator
 from quantrisk.backtesting.strategies import (
     STRATEGY_REGISTRY,
     equal_weight,
@@ -13,9 +15,6 @@ from quantrisk.backtesting.strategies import (
     momentum,
     risk_parity,
 )
-from quantrisk.backtesting.engine import BacktestEngine, BacktestResult
-from quantrisk.backtesting.evaluation import TearsheetEvaluator
-
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
