@@ -38,6 +38,14 @@ with tab_ff:
             fitted = False
 
     if fitted:
+        if ff_model.using_proxies:
+            st.warning(
+                "⚠️ Ken French's data library is unreachable. "
+                "Showing **approximate** results using ETF proxies "
+                "(SPY, IWM, IVE/IVW, QUAL, USMV). "
+                "Factor loadings may differ from official estimates."
+            )
+
         c1, c2, c3 = st.columns(3)
         c1.metric("R²",       f"{ff_model.r_squared:.4f}")
         c2.metric("Daily α",  f"{ff_model.alpha:.6f}")

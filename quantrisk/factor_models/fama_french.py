@@ -1,10 +1,17 @@
 """
 Fama-French 3-factor and 5-factor model regression.
 
-Factor data is downloaded from Ken French's data library:
-  https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html
-
-The daily CSV zips are parsed directly via pandas.
+Factor data priority:
+  1. Ken French's data library (Dartmouth) — canonical source
+  2. Disk cache (data/ff3_factors.parquet / data/ff5_factors.parquet) — used when
+     the remote source is unreachable but was successfully downloaded before
+  3. ETF-proxy synthetic factors — last resort fallback using yfinance ETFs:
+       Mkt-RF : SPY - RF
+       SMB    : IWM - SPY  (small-cap minus large-cap)
+       HML    : IVE - IVW  (S&P 500 Value minus S&P 500 Growth)
+       RMW    : QUAL - SPY (quality/profitability proxy)
+       CMA    : USMV - SPY (low-vol / conservative investment proxy)
+     Note: ETF proxies are approximate; use official factors when possible.
 """
 
 from __future__ import annotations
@@ -12,11 +19,14 @@ from __future__ import annotations
 import io
 import zipfile
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import requests
 import statsmodels.api as sm
+import yfinance as yf
 
+from quantrisk.config import settings
 from quantrisk.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -34,22 +44,19 @@ FF5_URL = (
 _FF_CACHE: dict[str, pd.DataFrame] = {}
 
 
-def _download_ff_factors(url: str, cache_key: str) -> pd.DataFrame:
-    if cache_key in _FF_CACHE:
-        return _FF_CACHE[cache_key]
+# ── Download from Dartmouth ────────────────────────────────────────────────────
 
+def _download_ff_factors(url: str) -> pd.DataFrame:
+    """Attempt to download and parse FF factors from the Dartmouth URL."""
     logger.info("Downloading Fama-French factors from %s", url)
-    try:
-        resp = requests.get(url, timeout=30)
-        resp.raise_for_status()
-        z = zipfile.ZipFile(io.BytesIO(resp.content))
-        csv_name = [n for n in z.namelist() if n.endswith(".CSV") or n.endswith(".csv")][0]
-        content = z.read(csv_name).decode("utf-8", errors="ignore")
-    except Exception as exc:
-        logger.error("Failed to download FF factors: %s", exc)
-        return pd.DataFrame()
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; research-tool/1.0)"}
+    resp = requests.get(url, timeout=20, headers=headers)
+    resp.raise_for_status()
 
-    # Find the data section (skip header commentary lines)
+    z = zipfile.ZipFile(io.BytesIO(resp.content))
+    csv_name = [n for n in z.namelist() if n.lower().endswith(".csv")][0]
+    content = z.read(csv_name).decode("utf-8", errors="ignore")
+
     lines = content.splitlines()
     start = 0
     for i, line in enumerate(lines):
@@ -57,59 +64,157 @@ def _download_ff_factors(url: str, cache_key: str) -> pd.DataFrame:
             start = i
             break
 
-    # Find the end (annual averages section starts with blank line)
     end = len(lines)
     for i in range(start, len(lines)):
-        stripped = lines[i].strip()
-        if stripped == "" and i > start + 10:
+        if lines[i].strip() == "" and i > start + 10:
             end = i
             break
 
-    data_lines = "\n".join(lines[start:end])
     df = pd.read_csv(
-        io.StringIO(data_lines),
+        io.StringIO("\n".join(lines[start:end])),
         header=None,
         index_col=0,
         skipinitialspace=True,
     )
     df.index = pd.to_datetime(df.index.astype(str), format="%Y%m%d", errors="coerce")
     df = df[df.index.notna()]
-    df = df.apply(pd.to_numeric, errors="coerce") / 100  # convert from % to decimal
-
-    _FF_CACHE[cache_key] = df
+    df = df.apply(pd.to_numeric, errors="coerce") / 100
     logger.info("Downloaded %d rows of FF factors", len(df))
     return df
 
 
-def get_ff3_factors(start: str, end: str | None = None) -> pd.DataFrame:
-    """
-    Return daily Fama-French 3 factors aligned to [start, end].
+# ── Disk cache helpers ─────────────────────────────────────────────────────────
 
-    Columns: Mkt-RF, SMB, HML, RF
+def _cache_path(key: str) -> Path:
+    settings.ensure_dirs()
+    return settings.processed_data_dir / f"{key}_factors.parquet"
+
+
+def _save_to_disk(df: pd.DataFrame, key: str) -> None:
+    try:
+        df.to_parquet(_cache_path(key))
+        logger.info("Saved %s factors to disk cache", key)
+    except Exception as exc:
+        logger.warning("Could not save FF factors to disk: %s", exc)
+
+
+def _load_from_disk(key: str) -> pd.DataFrame:
+    path = _cache_path(key)
+    if path.exists():
+        logger.info("Loading %s factors from disk cache", key)
+        return pd.read_parquet(path)
+    return pd.DataFrame()
+
+
+# ── ETF-proxy synthetic factors ────────────────────────────────────────────────
+
+_ETF_CACHE: dict[str, pd.DataFrame] = {}
+
+_FF3_ETFS = ["SPY", "IWM", "IVE", "IVW"]
+_FF5_ETFS = ["SPY", "IWM", "IVE", "IVW", "QUAL", "USMV"]
+
+
+def _etf_proxy_factors(
+    start: str,
+    end: str,
+    n_factors: int,
+    risk_free_rate: float = 0.05,
+) -> pd.DataFrame:
     """
-    if end is None:
-        end = date.today().isoformat()
-    df = _download_ff_factors(FF3_URL, "ff3")
-    if df.empty:
-        return df
-    df.columns = ["Mkt-RF", "SMB", "HML", "RF"]
-    return df.loc[start:end]
+    Build synthetic FF factors from ETF returns via yfinance.
+
+    Columns match the official FF naming: Mkt-RF, SMB, HML[, RMW, CMA], RF.
+    """
+    cache_key = f"etf_{n_factors}_{start}_{end}"
+    if cache_key in _ETF_CACHE:
+        return _ETF_CACHE[cache_key]
+
+    tickers = _FF5_ETFS if n_factors == 5 else _FF3_ETFS
+    logger.info("Fetching ETF proxy factors: %s", tickers)
+
+    raw = yf.download(tickers, start=start, end=end, auto_adjust=True, progress=False)
+    if raw.empty:
+        return pd.DataFrame()
+
+    prices = raw["Close"] if "Close" in raw.columns else raw
+    rets = prices.pct_change().dropna()
+
+    rf_daily = risk_free_rate / 252
+
+    factors = pd.DataFrame(index=rets.index)
+    factors["Mkt-RF"] = rets["SPY"] - rf_daily
+    factors["SMB"] = rets["IWM"] - rets["SPY"]
+    factors["HML"] = rets["IVE"] - rets["IVW"]
+    if n_factors == 5:
+        factors["RMW"] = rets["QUAL"] - rets["SPY"]
+        factors["CMA"] = rets["USMV"] - rets["SPY"]
+    factors["RF"] = rf_daily
+
+    factors = factors.dropna()
+    _ETF_CACHE[cache_key] = factors
+    logger.info("Built %d-factor ETF proxies (%d rows)", n_factors, len(factors))
+    return factors
+
+
+# ── Public factor accessors ────────────────────────────────────────────────────
+
+def _get_factors(
+    url: str,
+    key: str,
+    columns: list[str],
+    start: str,
+    end: str,
+    n_factors: int,
+) -> pd.DataFrame:
+    """
+    Return FF factors, trying: remote → disk cache → ETF proxies.
+    """
+    # 1. In-memory cache
+    if key in _FF_CACHE:
+        df = _FF_CACHE[key]
+        df.columns = columns
+        return df.loc[start:end]
+
+    # 2. Remote download
+    try:
+        df = _download_ff_factors(url)
+        df.columns = columns
+        _save_to_disk(df, key)
+        _FF_CACHE[key] = df
+        return df.loc[start:end]
+    except Exception as exc:
+        logger.warning("Remote FF download failed (%s); trying disk cache.", exc)
+
+    # 3. Disk cache
+    df = _load_from_disk(key)
+    if not df.empty:
+        df.columns = columns
+        _FF_CACHE[key] = df
+        return df.loc[start:end]
+
+    # 4. ETF proxies
+    logger.warning(
+        "FF remote and disk cache unavailable — using ETF-proxy synthetic factors. "
+        "Results are approximate."
+    )
+    rf = settings.risk_free_rate_fallback
+    return _etf_proxy_factors(start, end, n_factors=n_factors, risk_free_rate=rf)
+
+
+def get_ff3_factors(start: str, end: str | None = None) -> pd.DataFrame:
+    """Return daily FF3 factors aligned to [start, end]. Columns: Mkt-RF, SMB, HML, RF."""
+    _end = end or date.today().isoformat()
+    return _get_factors(FF3_URL, "ff3", ["Mkt-RF", "SMB", "HML", "RF"], start, _end, 3)
 
 
 def get_ff5_factors(start: str, end: str | None = None) -> pd.DataFrame:
-    """
-    Return daily Fama-French 5 factors aligned to [start, end].
+    """Return daily FF5 factors aligned to [start, end]. Columns: Mkt-RF, SMB, HML, RMW, CMA, RF."""
+    _end = end or date.today().isoformat()
+    cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
+    return _get_factors(FF5_URL, "ff5", cols, start, _end, 5)
 
-    Columns: Mkt-RF, SMB, HML, RMW, CMA, RF
-    """
-    if end is None:
-        end = date.today().isoformat()
-    df = _download_ff_factors(FF5_URL, "ff5")
-    if df.empty:
-        return df
-    df.columns = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
-    return df.loc[start:end]
 
+# ── Model ──────────────────────────────────────────────────────────────────────
 
 class FamaFrenchModel:
     """
@@ -136,6 +241,7 @@ class FamaFrenchModel:
         self._result = None
         self._factors: pd.DataFrame | None = None
         self._aligned: pd.DataFrame | None = None
+        self.using_proxies: bool = False
 
     def fit(
         self,
@@ -155,18 +261,22 @@ class FamaFrenchModel:
             factor_cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA"]
 
         if factors.empty:
-            raise RuntimeError("Could not download Fama-French factors")
+            raise RuntimeError(
+                "Could not obtain Fama-French factors from any source "
+                "(remote, disk cache, or ETF proxies)."
+            )
+
+        # Detect if we're using ETF proxies (no disk/remote data)
+        self.using_proxies = "RF" in factors.columns and factors.index[0].year >= 2000
 
         self._factors = factors
 
-        # Align portfolio returns with factor data
         excess_returns = portfolio_returns - factors["RF"]
         aligned = pd.concat(
             [excess_returns.rename("Rp-Rf"), factors[factor_cols]], axis=1
         ).dropna()
         self._aligned = aligned
 
-        # OLS regression: Rp - Rf = α + β1*Mkt-RF + β2*SMB + ...
         y = aligned["Rp-Rf"]
         X = sm.add_constant(aligned[factor_cols])
         self._result = sm.OLS(y, X).fit()
@@ -181,9 +291,7 @@ class FamaFrenchModel:
         return self
 
     def report(self) -> pd.DataFrame:
-        """
-        Return a tidy DataFrame of factor loadings, t-stats, and p-values.
-        """
+        """Return a tidy DataFrame of factor loadings, t-stats, and p-values."""
         if self._result is None:
             raise RuntimeError("Call .fit() first")
         res = self._result
