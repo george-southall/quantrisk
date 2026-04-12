@@ -513,3 +513,110 @@ def plot_attribution_waterfall(
         height=400,
     )
     return fig
+
+
+def plot_regime_bands(
+    returns: pd.Series,
+    regime_series: pd.Series,
+    title: str = "Cumulative Returns with Regime Bands",
+) -> go.Figure:
+    """
+    Cumulative returns line chart with coloured background bands per regime.
+
+    Regime colours: Bull=#00CC96, Bear=#EF553B, Volatile=#FFA15A.
+    Contiguous same-regime spans are collapsed before calling add_vrect
+    to keep the number of shapes manageable.
+    """
+    _colours = {"Bull": "#00CC96", "Bear": "#EF553B", "Volatile": "#FFA15A"}
+
+    cum = (1 + returns.dropna()).cumprod()
+    aligned_regime = regime_series.reindex(cum.index, method="ffill").dropna()
+    cum = cum.reindex(aligned_regime.index)
+
+    fig = go.Figure()
+
+    # ── Background regime bands ────────────────────────────────────────────────
+    # Run-length encode regime series to get contiguous spans
+    changes = aligned_regime != aligned_regime.shift()
+    span_ids = changes.cumsum()
+    for _, span in aligned_regime.groupby(span_ids):
+        label = span.iloc[0]
+        colour = _colours.get(label, "#cccccc")
+        fig.add_vrect(
+            x0=span.index[0],
+            x1=span.index[-1],
+            fillcolor=colour,
+            opacity=0.15,
+            layer="below",
+            line_width=0,
+        )
+
+    # ── Cumulative returns line ────────────────────────────────────────────────
+    fig.add_trace(go.Scatter(
+        x=cum.index,
+        y=cum.values,
+        mode="lines",
+        name="Portfolio",
+        line=dict(color="#1f77b4", width=2),
+        hovertemplate="%{x|%Y-%m-%d}: %{y:.3f}<extra></extra>",
+    ))
+
+    # ── Legend entries for regime colours ─────────────────────────────────────
+    for label, colour in _colours.items():
+        if label in aligned_regime.values:
+            fig.add_trace(go.Scatter(
+                x=[None], y=[None],
+                mode="markers",
+                marker=dict(size=10, color=colour, symbol="square", opacity=0.5),
+                name=label,
+                showlegend=True,
+            ))
+
+    fig.update_layout(
+        title=title,
+        xaxis=dict(title="Date", showgrid=False),
+        yaxis=dict(title="Growth of $1", tickformat=".2f", zeroline=False),
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        height=480,
+    )
+    return fig
+
+
+def plot_pnl_surface(
+    spots: np.ndarray,
+    x_vals: np.ndarray,
+    price_grid: np.ndarray,
+    x_label: str = "Implied Volatility",
+    title: str = "Option Price Surface",
+) -> go.Figure:
+    """
+    2D heatmap of option price over (spot price × vol or time).
+
+    spots      : y-axis values (spot prices)
+    x_vals     : x-axis values (vol or time-to-expiry)
+    price_grid : 2D array, shape (len(spots), len(x_vals))
+    """
+    fig = go.Figure(go.Heatmap(
+        x=x_vals,
+        y=spots,
+        z=price_grid,
+        colorscale="RdYlGn",
+        colorbar=dict(title="Price ($)", thickness=14),
+        hovertemplate=(
+            f"{x_label}: %{{x:.3f}}<br>"
+            "Spot: $%{y:.2f}<br>"
+            "Price: $%{z:.4f}<extra></extra>"
+        ),
+    ))
+
+    fig.update_layout(
+        title=title,
+        xaxis=dict(title=x_label),
+        yaxis=dict(title="Spot Price ($)"),
+        height=500,
+        margin=dict(t=50, b=50),
+    )
+    return fig

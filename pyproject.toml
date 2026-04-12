@@ -21,6 +21,7 @@ dependencies = [
     "statsmodels>=0.14.0",
     # ML / factor models
     "scikit-learn>=1.4.0",
+    "hmmlearn>=0.3.0",
     # Visualisation
     "plotly>=5.20.0",
     "seaborn>=0.13.0",
