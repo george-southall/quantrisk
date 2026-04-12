@@ -84,7 +84,7 @@ if shock_inputs:
     st.metric("Hypothetical Portfolio P&L", f"{hyp_result.portfolio_pl:.2%}")
     hyp_df = pd.DataFrame([
         {"ticker": t, "weight": f"{weights[t]:.1%}",
-         "shock": f"{hyp_result.ticker_shocks[t]:.1%}",
+         "shock": f"{hyp_result.shocks[t]:.1%}",
          "p&l": f"{hyp_result.ticker_pl[t]:.2%}"}
         for t in weights
     ])
