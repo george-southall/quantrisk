@@ -13,9 +13,12 @@ A professional-grade portfolio risk management system built in Python, demonstra
 | **Risk Metrics** | Sharpe, Sortino, Calmar, Beta, Jensen's Alpha, Treynor, Information Ratio, drawdown analysis |
 | **VaR & CVaR** | Historical, Parametric (Normal + Student-t), Monte Carlo (Cholesky decomposition) |
 | **Stress Testing** | 6 historical crisis scenarios (GFC, COVID, Dot-com, Black Monday, 2022 rate shock, EU debt); custom hypothetical shocks |
-| **Factor Models** | Fama-French 3/5-factor OLS regression; PCA statistical factor model; performance attribution |
+| **Factor Models** | Fama-French 3/5-factor OLS regression with ETF-proxy fallback; PCA statistical factor model; performance attribution |
+| **Portfolio Optimisation** | Efficient frontier, max Sharpe, min variance, target-return portfolios (scipy SLSQP); Capital Market Line visualisation |
 | **Backtesting** | Walk-forward engine with 6 strategies, transaction costs, slippage, and tearsheet evaluation |
-| **Dashboard** | 6-page Streamlit app with interactive Plotly charts |
+| **Regime Detection** | Hidden Markov Model (2- or 3-state) fitted to portfolio returns; per-regime statistics and duration analysis |
+| **Options & Greeks** | Black-Scholes pricing with all five Greeks (Δ, Γ, ν, Θ, ρ); P&L surface by spot/vol/time |
+| **Dashboard** | 10-page Streamlit app with interactive Plotly charts and CSV/HTML export |
 
 ---
 
@@ -25,6 +28,7 @@ A professional-grade portfolio risk management system built in Python, demonstra
 - **pandas / numpy / scipy** — data and quantitative computation
 - **statsmodels** — OLS factor regression
 - **scikit-learn** — PCA factor model
+- **hmmlearn** — Hidden Markov Model regime detection
 - **yfinance / fredapi** — market and macro data
 - **SQLAlchemy** — SQLite price cache
 - **pydantic-settings** — configuration via `.env`
@@ -39,22 +43,29 @@ A professional-grade portfolio risk management system built in Python, demonstra
 ```
 quantrisk/
 ├── ingestion/          # Market data (yfinance) and macro data (FRED)
-├── portfolio/          # Portfolio class, return calculations
+├── portfolio/          # Portfolio class, return calculations, optimiser
 ├── risk/               # VaR, CVaR, metrics, drawdown
 ├── stress_testing/     # Historical scenarios, hypothetical shocks, MC simulation
 ├── factor_models/      # Fama-French regression, PCA, performance attribution
 ├── backtesting/        # Walk-forward engine, strategies, tearsheet evaluator
+├── regime/             # Hidden Markov Model regime detection
+├── derivatives/        # Black-Scholes pricing and Greeks
 └── utils/              # Logger, Plotly chart builders
 
 dashboard/
 ├── app.py              # Portfolio Overview (home page)
 ├── sidebar.py          # Shared portfolio configuration and caching
+├── export_utils.py     # CSV and HTML chart download helpers
 └── pages/
     ├── 2_Risk_Metrics.py
     ├── 3_VaR_Deep_Dive.py
     ├── 4_Stress_Testing.py
     ├── 5_Factor_Analysis.py
-    └── 6_Backtesting.py
+    ├── 6_Backtesting.py
+    ├── 7_Portfolio_Optimisation.py
+    ├── 8_Live_Risk_Monitor.py
+    ├── 9_Regime_Detection.py
+    └── 10_Options_Greeks.py
 
 tests/                  # pytest test suite
 ```
@@ -98,11 +109,15 @@ pytest
 | Page | Description |
 |---|---|
 | **Portfolio Overview** | Cumulative returns vs benchmark, weights, rolling Sharpe/vol/drawdown |
-| **Risk Metrics** | Drawdown chart, return distribution, correlation heatmap, drawdown event table |
+| **Risk Metrics** | Drawdown chart, return distribution, correlation/covariance heatmaps, rolling pairwise correlation, drawdown event table |
 | **VaR Deep Dive** | Historical/Parametric/MC VaR and CVaR, Monte Carlo wealth path simulation |
 | **Stress Testing** | Historical crisis scenario P&L, custom hypothetical shock builder |
 | **Factor Analysis** | Fama-French 3/5-factor regression, PCA model, performance attribution waterfall |
 | **Backtesting** | Walk-forward strategy comparison, annual/monthly return heatmaps, weight history |
+| **Portfolio Optimisation** | Efficient frontier with CML, max Sharpe / min variance / target-return portfolio weights |
+| **Live Risk Monitor** | Real-time VaR, drawdown, and volatility metrics with breach alerts and VaR term structure |
+| **Regime Detection** | HMM-fitted market regimes (Bull/Bear/Volatile) with statistics, duration histogram, return distributions |
+| **Options & Greeks** | Black-Scholes option pricing, all five Greeks, P&L surface by spot/vol/time, sensitivity table |
 
 ---
 
