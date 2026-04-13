@@ -620,3 +620,82 @@ def plot_pnl_surface(
         margin=dict(t=50, b=50),
     )
     return fig
+
+
+def plot_rolling_correlation(
+    returns_df: pd.DataFrame,
+    asset1: str,
+    asset2: str,
+    window: int = 60,
+    title: str = "",
+) -> go.Figure:
+    """
+    Rolling pairwise correlation between two assets.
+
+    Parameters
+    ----------
+    returns_df : pd.DataFrame
+        Daily returns with assets as columns.
+    asset1, asset2 : str
+        Column names to correlate.
+    window : int
+        Rolling window in trading days.
+    title : str
+        Chart title.
+    """
+    rolling_corr = returns_df[asset1].rolling(window).corr(returns_df[asset2]).dropna()
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=rolling_corr.index,
+            y=rolling_corr.values,
+            mode="lines",
+            name=f"{asset1} / {asset2}",
+            line=dict(color="#2196F3", width=1.5),
+        )
+    )
+    fig.add_hline(y=0, line=dict(color="grey", dash="dash", width=1))
+    fig.add_hrect(y0=-1, y1=-0.5, fillcolor="red",   opacity=0.05, line_width=0)
+    fig.add_hrect(y0=0.5, y1=1,   fillcolor="green", opacity=0.05, line_width=0)
+
+    fig.update_layout(
+        title=title or f"{window}-Day Rolling Correlation: {asset1} vs {asset2}",
+        xaxis=dict(title="Date"),
+        yaxis=dict(title="Correlation", range=[-1.05, 1.05]),
+        height=350,
+        margin=dict(t=50, b=40),
+    )
+    return fig
+
+
+def plot_covariance_heatmap(cov_matrix: pd.DataFrame, title: str = "") -> go.Figure:
+    """
+    Annotated heatmap of a covariance matrix.
+
+    Values are displayed as percentages (×100) for readability.
+    """
+    labels = list(cov_matrix.columns)
+    z = cov_matrix.values * 100  # scale: 0.0001 → 0.01% looks cleaner as 1e-2
+
+    text = [[f"{v:.4f}%" for v in row] for row in z]
+
+    fig = go.Figure(
+        go.Heatmap(
+            z=z,
+            x=labels,
+            y=labels,
+            text=text,
+            texttemplate="%{text}",
+            colorscale="RdBu_r",
+            zmid=0,
+            colorbar=dict(title="Cov ×100"),
+        )
+    )
+    fig.update_layout(
+        title=title or "Asset Covariance Matrix (×100)",
+        height=450,
+        margin=dict(t=50, b=50),
+        xaxis=dict(side="bottom"),
+    )
+    return fig

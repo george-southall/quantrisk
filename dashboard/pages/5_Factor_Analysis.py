@@ -4,6 +4,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Factor Analysis | QuantRisk", page_icon="🔬", layout="wide")
 
+from dashboard.export_utils import chart_download_button, csv_download_button
 from dashboard.sidebar import render_sidebar
 from quantrisk.factor_models.attribution import PerformanceAttribution
 from quantrisk.factor_models.fama_french import FamaFrenchModel
@@ -57,10 +58,9 @@ with tab_ff:
         )
 
         st.subheader("Regression Output")
-        st.dataframe(
-            report_df[["loading", "t_stat", "p_value", "significant", "description"]],
-            use_container_width=True,
-        )
+        display_df = report_df[["loading", "t_stat", "p_value", "significant", "description"]]
+        st.dataframe(display_df, use_container_width=True)
+        csv_download_button(display_df, f"ff{n_factors}_loadings.csv", "Download Factor Loadings CSV", key="dl_ff_csv")
 
         st.subheader("Performance Attribution")
         attr = PerformanceAttribution(ff_model).compute()

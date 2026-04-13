@@ -6,6 +6,7 @@ import streamlit as st
 
 st.set_page_config(page_title="VaR Deep Dive | QuantRisk", page_icon="⚠️", layout="wide")
 
+from dashboard.export_utils import chart_download_button, csv_download_button
 from dashboard.sidebar import render_sidebar
 from quantrisk.config import settings
 from quantrisk.risk.cvar import cvar_summary
@@ -60,6 +61,7 @@ c4.metric("Monte Carlo VaR",  f"{mc_var:.2%}")
 st.subheader("CVaR / Expected Shortfall")
 cvar_df = cvar_summary(returns)
 st.dataframe(cvar_df, use_container_width=True)
+csv_download_button(cvar_df, "cvar_summary.csv", "Download CVaR CSV", key="dl_cvar_csv")
 
 st.markdown("---")
 
@@ -71,10 +73,13 @@ for conf in [0.95, 0.99]:
     var_rows.append({"method": "Parametric (t)",     "confidence": conf, "var": parametric_var(returns, conf, horizon, "t")})
 
 var_table = pd.DataFrame(var_rows)
-st.plotly_chart(
-    plot_var_comparison(var_table, title=f"VaR Comparison ({horizon}-day horizon)"),
-    use_container_width=True,
-)
+var_fig = plot_var_comparison(var_table, title=f"VaR Comparison ({horizon}-day horizon)")
+st.plotly_chart(var_fig, use_container_width=True)
+col_a, col_b = st.columns(2)
+with col_a:
+    csv_download_button(var_table, "var_comparison.csv", "Download VaR Table CSV", key="dl_var_csv")
+with col_b:
+    chart_download_button(var_fig, "var_comparison.html", "Download Chart", key="dl_var_chart")
 
 # ── Return distribution with VaR lines ────────────────────────────────────────
 var_lines = {
