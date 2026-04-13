@@ -4,6 +4,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Backtesting | QuantRisk", page_icon="🔄", layout="wide")
 
+from dashboard.export_utils import chart_download_button, csv_download_button
 from dashboard.sidebar import render_sidebar
 from quantrisk.backtesting.engine import BacktestEngine
 from quantrisk.backtesting.evaluation import TearsheetEvaluator
@@ -84,10 +85,9 @@ cum_dict = {name: r.returns for name, r in results.items()}
 if bench_ret is not None:
     cum_dict[portfolio.benchmark] = bench_ret
 
-st.plotly_chart(
-    plot_cumulative_returns(cum_dict, title="Strategy Cumulative Returns"),
-    use_container_width=True,
-)
+cum_fig = plot_cumulative_returns(cum_dict, title="Strategy Cumulative Returns")
+st.plotly_chart(cum_fig, use_container_width=True)
+chart_download_button(cum_fig, "backtest_returns.html", "Download Returns Chart", key="dl_bt_chart")
 
 # Metrics table
 st.subheader("Performance Comparison")
@@ -102,6 +102,7 @@ st.dataframe(
     }),
     use_container_width=True,
 )
+csv_download_button(table, "backtest_comparison.csv", "Download Comparison CSV", key="dl_bt_csv")
 
 # Annual returns
 st.subheader("Annual Returns")

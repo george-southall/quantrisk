@@ -13,6 +13,7 @@ st.set_page_config(
     layout="wide",
 )
 
+from dashboard.export_utils import chart_download_button, csv_download_button
 from dashboard.sidebar import render_sidebar
 from quantrisk.config import settings
 from quantrisk.portfolio.optimizer import (
@@ -340,6 +341,16 @@ fig = _build_frontier_chart(
     target_port=target_port,
 )
 st.plotly_chart(fig, use_container_width=True)
+col_a, col_b = st.columns(2)
+with col_a:
+    csv_download_button(
+        frontier_df[["annualised_return", "annualised_volatility", "sharpe_ratio"]],
+        "efficient_frontier.csv",
+        "Download Frontier CSV",
+        key="dl_frontier_csv",
+    )
+with col_b:
+    chart_download_button(fig, "efficient_frontier.html", "Download Chart", key="dl_frontier_chart")
 
 if target_port is None:
     st.warning(
