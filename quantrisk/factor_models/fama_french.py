@@ -79,6 +79,7 @@ def _download_ff_factors(url: str) -> pd.DataFrame:
     df.index = pd.to_datetime(df.index.astype(str), format="%Y%m%d", errors="coerce")
     df = df[df.index.notna()]
     df = df.apply(pd.to_numeric, errors="coerce") / 100
+    df.index.name = "Date"
     logger.info("Downloaded %d rows of FF factors", len(df))
     return df
 
@@ -136,7 +137,14 @@ def _etf_proxy_factors(
     if raw.empty:
         return pd.DataFrame()
 
-    prices = raw["Close"] if "Close" in raw.columns else raw
+    # yfinance >=0.2 returns MultiIndex columns: (metric, ticker)
+    if isinstance(raw.columns, pd.MultiIndex):
+        prices = raw["Close"]
+    elif "Close" in raw.columns:
+        prices = raw["Close"]
+    else:
+        prices = raw
+
     rets = prices.pct_change().dropna()
 
     rf_daily = risk_free_rate / 252
@@ -165,15 +173,15 @@ def _get_factors(
     start: str,
     end: str,
     n_factors: int,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, bool]:
     """
-    Return FF factors, trying: remote → disk cache → ETF proxies.
+    Return (factors_df, using_proxies), trying: remote → disk cache → ETF proxies.
     """
     # 1. In-memory cache
     if key in _FF_CACHE:
         df = _FF_CACHE[key]
         df.columns = columns
-        return df.loc[start:end]
+        return df.loc[start:end], False
 
     # 2. Remote download
     try:
@@ -181,7 +189,7 @@ def _get_factors(
         df.columns = columns
         _save_to_disk(df, key)
         _FF_CACHE[key] = df
-        return df.loc[start:end]
+        return df.loc[start:end], False
     except Exception as exc:
         logger.warning("Remote FF download failed (%s); trying disk cache.", exc)
 
@@ -190,7 +198,7 @@ def _get_factors(
     if not df.empty:
         df.columns = columns
         _FF_CACHE[key] = df
-        return df.loc[start:end]
+        return df.loc[start:end], False
 
     # 4. ETF proxies
     logger.warning(
@@ -198,20 +206,22 @@ def _get_factors(
         "Results are approximate."
     )
     rf = settings.risk_free_rate_fallback
-    return _etf_proxy_factors(start, end, n_factors=n_factors, risk_free_rate=rf)
+    return _etf_proxy_factors(start, end, n_factors=n_factors, risk_free_rate=rf), True
 
 
 def get_ff3_factors(start: str, end: str | None = None) -> pd.DataFrame:
     """Return daily FF3 factors aligned to [start, end]. Columns: Mkt-RF, SMB, HML, RF."""
     _end = end or date.today().isoformat()
-    return _get_factors(FF3_URL, "ff3", ["Mkt-RF", "SMB", "HML", "RF"], start, _end, 3)
+    df, _ = _get_factors(FF3_URL, "ff3", ["Mkt-RF", "SMB", "HML", "RF"], start, _end, 3)
+    return df
 
 
 def get_ff5_factors(start: str, end: str | None = None) -> pd.DataFrame:
     """Return daily FF5 factors aligned to [start, end]. Columns: Mkt-RF, SMB, HML, RMW, CMA, RF."""
     _end = end or date.today().isoformat()
     cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
-    return _get_factors(FF5_URL, "ff5", cols, start, _end, 5)
+    df, _ = _get_factors(FF5_URL, "ff5", cols, start, _end, 5)
+    return df
 
 
 # ── Model ──────────────────────────────────────────────────────────────────────
@@ -254,10 +264,14 @@ class FamaFrenchModel:
         _end = end or str(portfolio_returns.index[-1].date())
 
         if self.n_factors == 3:
-            factors = get_ff3_factors(_start, _end)
+            factors, self.using_proxies = _get_factors(
+                FF3_URL, "ff3", ["Mkt-RF", "SMB", "HML", "RF"], _start, _end, 3
+            )
             factor_cols = ["Mkt-RF", "SMB", "HML"]
         else:
-            factors = get_ff5_factors(_start, _end)
+            factors, self.using_proxies = _get_factors(
+                FF5_URL, "ff5", ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"], _start, _end, 5
+            )
             factor_cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA"]
 
         if factors.empty:
@@ -265,9 +279,6 @@ class FamaFrenchModel:
                 "Could not obtain Fama-French factors from any source "
                 "(remote, disk cache, or ETF proxies)."
             )
-
-        # Detect if we're using ETF proxies (no disk/remote data)
-        self.using_proxies = "RF" in factors.columns and factors.index[0].year >= 2000
 
         self._factors = factors
 
@@ -282,7 +293,7 @@ class FamaFrenchModel:
         self._result = sm.OLS(y, X).fit()
 
         logger.info(
-            "FF%d model fitted: R²=%.3f, α=%.4f (t=%.2f)",
+            "FF%d model fitted: R2=%.3f, alpha=%.4f (t=%.2f)",
             self.n_factors,
             self._result.rsquared,
             self._result.params["const"],
