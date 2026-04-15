@@ -1,11 +1,4 @@
-"""
-Transaction Portfolio — actual P&L from real broker transactions.
-
-Data source is selected in the sidebar (demo portfolio or your own
-Trading 212 CSV upload). This page reads the shared TransactionPortfolio
-from session state and shows transaction-level detail that the other
-analytics pages don't need.
-"""
+"""Holdings — current positions, P&L, portfolio value history, and transaction log."""
 
 from __future__ import annotations
 
@@ -14,7 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 st.set_page_config(
-    page_title="Transaction Portfolio | QuantRisk",
+    page_title="Holdings | QuantRisk",
     page_icon="💷",
     layout="wide",
 )
@@ -33,11 +26,7 @@ if not tx_portfolio:
 
 transactions = tx_portfolio.transactions
 
-st.title("Transaction Portfolio")
-st.markdown(
-    "Track real P&L from actual broker transactions — "
-    "not model weights, but what you actually bought and at what price."
-)
+st.title("Holdings")
 st.markdown("---")
 
 holdings = tx_portfolio.holdings()
