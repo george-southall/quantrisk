@@ -1,14 +1,13 @@
 """
-Transaction Portfolio — import real broker data and track actual P&L.
+Transaction Portfolio — actual P&L from real broker transactions.
 
-Defaults to the synthetic demo portfolio so the app works out-of-the-box.
-Upload your own Trading 212 CSV to switch to your real data.
+Data source is selected in the sidebar (demo portfolio or your own
+Trading 212 CSV upload). This page reads the shared TransactionPortfolio
+from session state and shows transaction-level detail that the other
+analytics pages don't need.
 """
 
 from __future__ import annotations
-
-import io
-from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -21,8 +20,18 @@ st.set_page_config(
 )
 
 from dashboard.export_utils import chart_download_button, csv_download_button
-from quantrisk.ingestion.trading212 import fetch_prices, load_multiple_csvs, resolve_yf_ticker
-from quantrisk.portfolio.transactions import TransactionPortfolio
+from dashboard.sidebar import render_sidebar
+from quantrisk.ingestion.trading212 import fetch_prices, resolve_yf_ticker
+
+# Render sidebar (populates st.session_state["tx_portfolio"])
+render_sidebar()
+
+tx_portfolio = st.session_state.get("tx_portfolio")
+if not tx_portfolio:
+    st.info("Select a data source in the sidebar to get started.")
+    st.stop()
+
+transactions = tx_portfolio.transactions
 
 st.title("Transaction Portfolio")
 st.markdown(
@@ -31,73 +40,7 @@ st.markdown(
 )
 st.markdown("---")
 
-# ── Data source selection ──────────────────────────────────────────────────────
-DEMO_PATH = Path(__file__).resolve().parents[2] / "data" / "demo_transactions.csv"
-demo_available = DEMO_PATH.exists()
-
-col_src1, col_src2 = st.columns([3, 1])
-with col_src1:
-    use_demo = st.toggle(
-        "Use demo portfolio",
-        value=demo_available,
-        disabled=not demo_available,
-        help=(
-            "A synthetic 3-year, 16-asset portfolio generated from real historical prices. "
-            "Toggle off to upload your own Trading 212 export."
-        ),
-    )
-
-with col_src2:
-    if demo_available:
-        with open(DEMO_PATH, "rb") as fh:
-            st.download_button(
-                "Download demo CSV",
-                data=fh,
-                file_name="demo_transactions.csv",
-                mime="text/csv",
-                use_container_width=True,
-            )
-
-# ── Load transactions ──────────────────────────────────────────────────────────
-if use_demo and demo_available:
-    st.info(
-        "Showing the **synthetic demo portfolio** — 3 years, 16 assets, real historical prices. "
-        "Toggle *Use demo portfolio* off (above) to upload your own Trading 212 CSV.",
-        icon="ℹ️",
-    )
-    try:
-        transactions = load_multiple_csvs([str(DEMO_PATH)])
-    except Exception as exc:
-        st.error(f"Could not load demo data: {exc}")
-        st.stop()
-else:
-    st.subheader("Upload Your Trading 212 Export")
-    st.caption(
-        "Go to **History → Download CSV** in the Trading 212 app. "
-        "You can upload multiple files — duplicates are removed automatically."
-    )
-    uploaded = st.file_uploader(
-        "Choose CSV file(s)",
-        type="csv",
-        accept_multiple_files=True,
-        key="tx_upload",
-    )
-    if not uploaded:
-        st.info("Upload a Trading 212 CSV export above to get started.")
-        st.stop()
-    try:
-        sources = [io.StringIO(f.getvalue().decode("utf-8")) for f in uploaded]
-        transactions = load_multiple_csvs(sources)
-    except Exception as exc:
-        st.error(f"Could not parse CSV: {exc}")
-        st.stop()
-
-if not transactions:
-    st.warning("No transactions found.")
-    st.stop()
-
-portfolio = TransactionPortfolio(transactions, base_currency="GBP")
-holdings = portfolio.holdings()
+holdings = tx_portfolio.holdings()
 
 # ── Fetch current prices ───────────────────────────────────────────────────────
 @st.cache_data(ttl=300, show_spinner="Fetching live prices…")
@@ -128,12 +71,12 @@ current_prices = _get_prices(tickers_tuple) if holdings else {}
 # ── Summary metrics ────────────────────────────────────────────────────────────
 st.subheader("Summary")
 
-total_deposited = portfolio.total_deposited()
-portfolio_value = portfolio.current_value(current_prices)
-cash_balance = portfolio.cash_balance()
-total_upnl = sum(portfolio.unrealised_pnl(current_prices).values())
-total_realised = sum(portfolio.realised_pnl().values())
-total_return_pct = portfolio.total_return(current_prices)
+total_deposited = tx_portfolio.total_deposited()
+portfolio_value = tx_portfolio.current_value(current_prices)
+cash_balance = tx_portfolio.cash_balance()
+total_upnl = sum(tx_portfolio.unrealised_pnl(current_prices).values())
+total_realised = sum(tx_portfolio.realised_pnl().values())
+total_return_pct = tx_portfolio.total_return(current_prices)
 
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Total Deposited", f"£{total_deposited:,.0f}")
@@ -166,7 +109,7 @@ st.subheader("Holdings")
 if not holdings:
     st.info("No open positions.")
 else:
-    df = portfolio.holdings_df(current_prices)
+    df = tx_portfolio.holdings_df(current_prices)
 
     def _colour_pnl(val):
         if val is None or (isinstance(val, float) and pd.isna(val)):
@@ -206,7 +149,7 @@ def _value_history(tx_hash: int) -> pd.Series:
     def price_fetcher(tickers, start, end):
         return fetch_prices(tickers, start, end, price_currencies=currencies)
 
-    return portfolio.value_history(price_fetcher)
+    return tx_portfolio.value_history(price_fetcher)
 
 
 tx_hash = hash(tuple((t.transaction_id or t.date.isoformat()) for t in transactions))
@@ -274,7 +217,7 @@ st.markdown("---")
 # ── Transaction history ────────────────────────────────────────────────────────
 st.subheader("Transaction History")
 
-tx_df = portfolio.transaction_df()
+tx_df = tx_portfolio.transaction_df()
 n_buys  = tx_df["Action"].str.contains("buy",  case=False).sum()
 n_sells = tx_df["Action"].str.contains("sell", case=False).sum()
 n_deps  = (tx_df["Action"] == "Deposit").sum()
