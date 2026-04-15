@@ -7,13 +7,11 @@ buy/sell/deposit/withdrawal transactions — the way real investors track money.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable
 
-import numpy as np
 import pandas as pd
-
 
 # ── Transaction dataclass ──────────────────────────────────────────────────────
 
@@ -26,7 +24,7 @@ class Transaction:
     ticker: str | None = None
     isin: str | None = None
     name: str | None = None
-    shares: float | None = None         # positive for buys, positive for sells (sign handled by action)
+    shares: float | None = None         # positive for both buys and sells (sign from action)
     price_per_share: float | None = None
     price_currency: str | None = None
     exchange_rate: float = 1.0
@@ -330,7 +328,8 @@ class TransactionPortfolio:
                 continue
             tx_date = pd.Timestamp(tx.date.date())
             mask = shares_held.index >= tx_date
-            delta = tx.shares if tx.action in {"Market buy", "Limit buy", "Stop buy"} else -tx.shares
+            is_buy = tx.action in {"Market buy", "Limit buy", "Stop buy"}
+            delta = tx.shares if is_buy else -tx.shares
             if tx.ticker in shares_held.columns:
                 shares_held.loc[mask, tx.ticker] += delta
 

@@ -14,12 +14,14 @@ from quantrisk.ingestion.trading212 import (
     load_multiple_csvs,
     load_trading212_csv,
 )
-from quantrisk.portfolio.transactions import Holding, Transaction, TransactionPortfolio
-
+from quantrisk.portfolio.transactions import Transaction, TransactionPortfolio
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
-def _tx(action, ticker=None, shares=None, total=0.0, date="2024-01-10", isin=None, name=None, price=None):
+def _tx(
+    action, ticker=None, shares=None, total=0.0,
+    date="2024-01-10", isin=None, name=None, price=None,
+):
     return Transaction(
         date=datetime.fromisoformat(date),
         action=action,
@@ -196,21 +198,33 @@ class TestDataFrames:
 
 # ── Trading 212 CSV loader ─────────────────────────────────────────────────────
 
-SAMPLE_CSV = """\
-Action,Time,ISIN,Ticker,Name,Notes,ID,No. of shares,Price / share,Currency (Price / share),Exchange rate,Total,Currency (Total)
-Deposit,2026-04-04 17:59:00,,,,"Transaction ID: abc",id-001,,,,,4000.00,GBP
-Market buy,2026-04-07 08:06:05,IE00BK5BQT80,VWRP,"Vanguard FTSE All-World",,id-002,49.67,126.84,GBP,1.00,6300.00,GBP
-"""
+# Full Trading 212 stocks header (long by nature — kept as a constant)
+_HDR = (
+    "Action,Time,ISIN,Ticker,Name,Notes,ID,"
+    "No. of shares,Price / share,Currency (Price / share),"
+    "Exchange rate,Total,Currency (Total)"
+)
 
-SAMPLE_SELL_CSV = """\
-Action,Time,ISIN,Ticker,Name,Notes,ID,No. of shares,Price / share,Currency (Price / share),Exchange rate,Total,Currency (Total)
-Market sell,2026-04-10 10:00:00,IE00BK5BQT80,VWRP,"Vanguard FTSE All-World",,id-003,10.0,130.00,GBP,1.00,1300.00,GBP
-"""
+SAMPLE_CSV = "\n".join([
+    _HDR,
+    'Deposit,2026-04-04 17:59:00,,,,"Transaction ID: abc",id-001,,,,,4000.00,GBP',
+    "Market buy,2026-04-07 08:06:05,IE00BK5BQT80,VWRP,"
+    '"Vanguard FTSE All-World",,id-002,49.67,126.84,GBP,1.00,6300.00,GBP',
+    "",
+])
 
-CASH_CSV = """\
-Action,Time,Notes,ID,Total,Currency (Total)
-Deposit,2026-04-04 18:10:39,"Transaction ID: xyz",id-c01,9000.00,GBP
-"""
+SAMPLE_SELL_CSV = "\n".join([
+    _HDR,
+    "Market sell,2026-04-10 10:00:00,IE00BK5BQT80,VWRP,"
+    '"Vanguard FTSE All-World",,id-003,10.0,130.00,GBP,1.00,1300.00,GBP',
+    "",
+])
+
+CASH_CSV = "\n".join([
+    "Action,Time,Notes,ID,Total,Currency (Total)",
+    'Deposit,2026-04-04 18:10:39,"Transaction ID: xyz",id-c01,9000.00,GBP',
+    "",
+])
 
 
 class TestTrading212Loader:
@@ -380,15 +394,18 @@ class TestValueHistory:
 
 # ── Trading 212 CSV edge cases ─────────────────────────────────────────────────
 
-WITHDRAWAL_CSV = """\
-Action,Time,ISIN,Ticker,Name,Notes,ID,No. of shares,Price / share,Currency (Price / share),Exchange rate,Total,Currency (Total)
-Withdrawal,2026-04-05 10:00:00,,,,,id-w01,,,,,500.00,GBP
-"""
+WITHDRAWAL_CSV = "\n".join([
+    _HDR,
+    "Withdrawal,2026-04-05 10:00:00,,,,,id-w01,,,,,500.00,GBP",
+    "",
+])
 
-BAD_DATE_CSV = """\
-Action,Time,ISIN,Ticker,Name,Notes,ID,No. of shares,Price / share,Currency (Price / share),Exchange rate,Total,Currency (Total)
-Market buy,NOT-A-DATE,IE00BK5BQT80,VWRP,"Vanguard FTSE All-World",,id-bad,10.0,126.84,GBP,1.00,1268.40,GBP
-"""
+BAD_DATE_CSV = "\n".join([
+    _HDR,
+    "Market buy,NOT-A-DATE,IE00BK5BQT80,VWRP,"
+    '"Vanguard FTSE All-World",,id-bad,10.0,126.84,GBP,1.00,1268.40,GBP',
+    "",
+])
 
 
 class TestTrading212EdgeCases:
