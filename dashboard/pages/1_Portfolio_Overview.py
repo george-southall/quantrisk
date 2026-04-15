@@ -1,4 +1,4 @@
-"""Portfolio Overview — cumulative returns, weights, rolling stats, key metrics."""
+"""Portfolio Overview — portfolio value, cumulative returns, weights, rolling stats."""
 
 import pandas as pd
 import streamlit as st
@@ -10,7 +10,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+import yfinance as yf
+
 from dashboard.sidebar import render_sidebar
+from quantrisk.ingestion.trading212 import resolve_yf_ticker
 from quantrisk.risk.metrics import compute_all_metrics
 from quantrisk.utils.plotting import (
     plot_cumulative_returns,
@@ -23,7 +26,54 @@ portfolio = render_sidebar()
 st.title("Portfolio Overview")
 st.markdown("---")
 
-# ── Key metrics ────────────────────────────────────────────────────────────────
+# ── Portfolio value summary (from transaction data) ────────────────────────────
+tx_portfolio = st.session_state.get("tx_portfolio")
+if tx_portfolio is not None:
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _overview_prices(tickers: tuple[str, ...]) -> dict[str, float]:
+        prices: dict[str, float] = {}
+        for ticker in tickers:
+            try:
+                hist = yf.download(
+                    resolve_yf_ticker(ticker), period="5d",
+                    auto_adjust=True, progress=False,
+                )
+                if not hist.empty:
+                    close = hist["Close"]
+                    if isinstance(close, pd.DataFrame):
+                        close = close.iloc[:, 0]
+                    prices[ticker] = float(close.dropna().iloc[-1])
+            except Exception:
+                pass
+        return prices
+
+    _holdings = tx_portfolio.holdings()
+    _prices = _overview_prices(tuple(sorted(_holdings.keys()))) if _holdings else {}
+
+    _deposited = tx_portfolio.total_deposited()
+    _value     = tx_portfolio.current_value(_prices)
+    _cash      = tx_portfolio.cash_balance()
+    _upnl      = sum(tx_portfolio.unrealised_pnl(_prices).values())
+    _ret       = tx_portfolio.total_return(_prices)
+
+    vc1, vc2, vc3, vc4, vc5 = st.columns(5)
+    vc1.metric("Total Deposited",  f"£{_deposited:,.0f}")
+    vc2.metric(
+        "Portfolio Value",
+        f"£{_value:,.0f}",
+        delta=f"£{_value - _deposited:+,.0f}",
+    )
+    vc3.metric("Cash Balance",     f"£{_cash:,.0f}")
+    vc4.metric(
+        "Unrealised P&L",
+        f"£{_upnl:+,.0f}",
+        delta=f"{_upnl / (_deposited or 1):.2%}",
+        delta_color="normal",
+    )
+    vc5.metric("Total Return",     f"{_ret:.2%}", delta_color="normal")
+    st.markdown("---")
+
+# ── Key risk metrics ───────────────────────────────────────────────────────────
 metrics = compute_all_metrics(portfolio.returns, portfolio.benchmark_returns)
 
 col1, col2, col3, col4, col5 = st.columns(5)
