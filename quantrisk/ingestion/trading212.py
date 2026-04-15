@@ -16,6 +16,8 @@ compatible with TransactionPortfolio.
 from __future__ import annotations
 
 import io
+import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -111,6 +113,19 @@ def load_multiple_csvs(
 
 _TICKER_CACHE: dict[str, str] = {}
 
+
+@contextmanager
+def _silence():
+    """Suppress stdout/stderr — used to hide expected yfinance 404 noise."""
+    with open(os.devnull, "w") as devnull:
+        import sys
+        old_out, old_err = sys.stdout, sys.stderr
+        try:
+            sys.stdout = sys.stderr = devnull
+            yield
+        finally:
+            sys.stdout, sys.stderr = old_out, old_err
+
 _LSE_SUFFIXES = [".L", ".IL"]
 _US_EXCHANGES = {"USD"}
 
@@ -139,12 +154,13 @@ def resolve_yf_ticker(ticker: str, price_currency: str | None = None) -> str:
 
     for candidate in candidates:
         try:
-            hist = yf.download(
-                candidate,
-                period="5d",
-                auto_adjust=True,
-                progress=False,
-            )
+            with _silence():
+                hist = yf.download(
+                    candidate,
+                    period="5d",
+                    auto_adjust=True,
+                    progress=False,
+                )
             if not hist.empty:
                 _TICKER_CACHE[ticker] = candidate
                 logger.info("Resolved %s -> %s", ticker, candidate)
