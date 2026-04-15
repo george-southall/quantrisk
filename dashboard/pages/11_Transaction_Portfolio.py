@@ -157,7 +157,7 @@ else:
     styled = (
         df.style
         .format(format_map, na_rep="—")
-        .applymap(_colour_pnl, subset=["Unrealised P&L", "P&L %"])
+        .map(_colour_pnl, subset=["Unrealised P&L", "P&L %"])
     )
     st.dataframe(styled, use_container_width=True, hide_index=True)
     csv_download_button(df, "holdings.csv", "Download Holdings CSV", key="dl_holdings")
