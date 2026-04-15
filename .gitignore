@@ -24,6 +24,13 @@ data/raw/
 data/processed/
 data/*.db
 
+# Personal data — CSV exports, broker statements, transaction files
+# NEVER commit personal financial data to version control
+*.csv
+*.xlsx
+*.xls
+uploads/
+
 # Logs
 logs/
 
