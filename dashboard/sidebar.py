@@ -54,9 +54,11 @@ def render_sidebar() -> Portfolio:
         # ── Data source ────────────────────────────────────────────────────────
         st.subheader("Data Source")
 
+        # key= persists widget value in session state across page navigations
         use_demo = st.toggle(
             "Use demo portfolio",
             value=demo_available,
+            key="use_demo_toggle",
             disabled=not demo_available,
             help=(
                 "Synthetic 3-year, 16-asset portfolio generated from real historical prices. "
@@ -65,6 +67,8 @@ def render_sidebar() -> Portfolio:
         )
 
         if use_demo and demo_available:
+            # Clear any previously stored upload so switching back to demo is clean
+            st.session_state.pop("uploaded_csv_data", None)
             source_key = (int(DEMO_PATH.stat().st_mtime),)
             sources_payload = (str(DEMO_PATH),)   # single path; is_demo=True in loader
             source_label = "Demo portfolio"
@@ -75,17 +79,31 @@ def render_sidebar() -> Portfolio:
                 accept_multiple_files=True,
                 help="Go to History → Download CSV in the Trading 212 app.",
             )
-            if not uploaded:
+            # Save file bytes to session state when present so they survive
+            # page navigation (file_uploader resets to empty on every rerun)
+            if uploaded:
+                st.session_state["uploaded_csv_data"] = {
+                    f.name: f.getvalue() for f in uploaded
+                }
+
+            stored = st.session_state.get("uploaded_csv_data")
+            if not stored:
                 st.info("Upload a Trading 212 CSV to get started.")
                 st.stop()
-            source_key = tuple(hash(f.getvalue()) for f in uploaded)
-            sources_payload = tuple(f.getvalue().decode("utf-8") for f in uploaded)
-            source_label = f"{len(uploaded)} file(s) uploaded"
+
+            source_key = tuple(hash(v) for v in sorted(stored.values()))
+            sources_payload = tuple(
+                v.decode("utf-8") for v in stored.values()
+            )
+            source_label = f"{len(stored)} file(s) uploaded"
 
         # ── Settings ───────────────────────────────────────────────────────────
         st.divider()
         st.subheader("Settings")
-        benchmark = st.text_input("Benchmark", value="SPY").upper().strip()
+        # key= persists benchmark choice across page navigations
+        benchmark = st.text_input(
+            "Benchmark", value="SPY", key="benchmark_input"
+        ).upper().strip()
 
         if st.button("Reload data", width='stretch'):
             st.cache_resource.clear()
