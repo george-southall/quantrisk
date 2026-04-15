@@ -80,7 +80,7 @@ def _get_prices(tickers: tuple[str, ...]) -> dict[str, float]:
         try:
             hist = yf.download(
                 yf_ticker, period="5d", auto_adjust=True,
-                progress=False, show_errors=False,
+                progress=False,
             )
             if not hist.empty:
                 close = hist["Close"]

@@ -144,11 +144,10 @@ def resolve_yf_ticker(ticker: str, price_currency: str | None = None) -> str:
                 period="5d",
                 auto_adjust=True,
                 progress=False,
-                show_errors=False,
             )
             if not hist.empty:
                 _TICKER_CACHE[ticker] = candidate
-                logger.info("Resolved %s → %s", ticker, candidate)
+                logger.info("Resolved %s -> %s", ticker, candidate)
                 return candidate
         except Exception:
             continue
