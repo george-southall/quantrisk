@@ -31,6 +31,9 @@ data/*.db
 *.xls
 uploads/
 
+# Exception: synthetic demo data is intentionally public
+!data/demo_transactions.csv
+
 # Logs
 logs/
 
