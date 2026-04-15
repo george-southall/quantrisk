@@ -73,7 +73,7 @@ st.markdown("---")
 # ── Regime bands chart ─────────────────────────────────────────────────────────
 st.plotly_chart(
     plot_regime_bands(returns, regime_series, title="Portfolio Returns with Regime Bands"),
-    use_container_width=True,
+    width='stretch',
 )
 
 st.markdown("---")
@@ -94,7 +94,7 @@ display_df.columns = [
     "Ann. Return", "Ann. Vol", "Sharpe", "Avg Duration (days)", "% Time", ""
 ]
 
-st.dataframe(display_df, use_container_width=True)
+st.dataframe(display_df, width='stretch')
 
 st.markdown("---")
 
@@ -127,7 +127,7 @@ fig_hist.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     height=380,
 )
-st.plotly_chart(fig_hist, use_container_width=True)
+st.plotly_chart(fig_hist, width='stretch')
 
 # ── Return distribution by regime ─────────────────────────────────────────────
 st.subheader("Daily Return Distribution by Regime")
@@ -151,4 +151,4 @@ fig_dist.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     height=380,
 )
-st.plotly_chart(fig_dist, use_container_width=True)
+st.plotly_chart(fig_dist, width='stretch')

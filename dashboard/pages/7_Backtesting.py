@@ -41,7 +41,7 @@ if not selected:
     st.warning("Select at least one strategy.")
     st.stop()
 
-if st.button("Run Backtest", type="primary", use_container_width=True):
+if st.button("Run Backtest", type="primary", width='stretch'):
     engine = BacktestEngine(
         estimation_window=est_window,
         rebalance_freq=rb_freq,
@@ -86,7 +86,7 @@ if bench_ret is not None:
     cum_dict[portfolio.benchmark] = bench_ret
 
 cum_fig = plot_cumulative_returns(cum_dict, title="Strategy Cumulative Returns")
-st.plotly_chart(cum_fig, use_container_width=True)
+st.plotly_chart(cum_fig, width='stretch')
 chart_download_button(cum_fig, "backtest_returns.html", "Download Returns Chart", key="dl_bt_chart")
 
 # Metrics table
@@ -100,7 +100,7 @@ st.dataframe(
         "max_drawdown_duration_days": "{:.0f}", "avg_monthly_turnover": "{:.2%}",
         "win_rate": "{:.2%}", "best_day": "{:.2%}", "worst_day": "{:.2%}",
     }),
-    use_container_width=True,
+    width='stretch',
 )
 csv_download_button(table, "backtest_comparison.csv", "Download Comparison CSV", key="dl_bt_csv")
 
@@ -109,7 +109,7 @@ st.subheader("Annual Returns")
 annual = evaluator.annual_returns()
 st.plotly_chart(
     plot_annual_returns_bar(annual, title="Calendar Year Returns"),
-    use_container_width=True,
+    width='stretch',
 )
 
 # Per-strategy deep dive
@@ -126,14 +126,14 @@ with tab_monthly:
         plot_monthly_returns_heatmap(
             results[chosen].returns, title=f"{chosen} — Monthly Returns"
         ),
-        use_container_width=True,
+        width='stretch',
     )
 
 with tab_rolling:
     rolling = evaluator.rolling_metrics(chosen)
     st.plotly_chart(
         plot_rolling_stats(rolling, title=f"{chosen} — Rolling Metrics"),
-        use_container_width=True,
+        width='stretch',
     )
 
 with tab_weights:
@@ -141,7 +141,7 @@ with tab_weights:
     if not wh.empty:
         st.plotly_chart(
             plot_weights_history(wh, title=f"{chosen} — Weight History"),
-            use_container_width=True,
+            width='stretch',
         )
     else:
         st.info("No weight history available for this strategy.")

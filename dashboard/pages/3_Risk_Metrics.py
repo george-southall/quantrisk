@@ -35,12 +35,12 @@ st.markdown("---")
 
 # ── Drawdown chart ─────────────────────────────────────────────────────────────
 dd_fig = plot_drawdown(portfolio.returns, title="Drawdown from Peak")
-st.plotly_chart(dd_fig, use_container_width=True)
+st.plotly_chart(dd_fig, width='stretch')
 chart_download_button(dd_fig, "drawdown.html", "Download Drawdown Chart", key="dl_dd_chart")
 
 # ── Return distribution ────────────────────────────────────────────────────────
 dist_fig = plot_return_distribution(portfolio.returns, title="Daily Return Distribution")
-st.plotly_chart(dist_fig, use_container_width=True)
+st.plotly_chart(dist_fig, width='stretch')
 chart_download_button(dist_fig, "return_distribution.html", "Download Distribution Chart", key="dl_dist_chart")
 
 # ── Correlation / Covariance ───────────────────────────────────────────────────
@@ -52,7 +52,7 @@ tab_corr, tab_cov, tab_rolling = st.tabs(
 
 with tab_corr:
     corr_fig = plot_correlation_heatmap(portfolio.correlation_matrix, title="Asset Correlations")
-    st.plotly_chart(corr_fig, use_container_width=True)
+    st.plotly_chart(corr_fig, width='stretch')
     col_a, col_b = st.columns(2)
     with col_a:
         csv_download_button(
@@ -67,7 +67,7 @@ with tab_corr:
 with tab_cov:
     cov_matrix = portfolio.asset_returns.cov()
     cov_fig = plot_covariance_heatmap(cov_matrix, title="Asset Covariance Matrix (daily, ×100)")
-    st.plotly_chart(cov_fig, use_container_width=True)
+    st.plotly_chart(cov_fig, width='stretch')
     col_a, col_b = st.columns(2)
     with col_a:
         csv_download_button(
@@ -93,7 +93,7 @@ with tab_rolling:
             rc_fig = plot_rolling_correlation(
                 portfolio.asset_returns, asset1, asset2, window=window
             )
-            st.plotly_chart(rc_fig, use_container_width=True)
+            st.plotly_chart(rc_fig, width='stretch')
             chart_download_button(rc_fig, "rolling_correlation.html", "Download Chart", key="dl_rc_chart")
     else:
         st.info("Add at least two assets to the portfolio to view pairwise correlations.")
@@ -103,5 +103,5 @@ st.markdown("---")
 # ── Drawdown event table ───────────────────────────────────────────────────────
 st.subheader("Top Drawdown Events")
 dd_df = drawdown_table(portfolio.returns, top_n=10)
-st.dataframe(dd_df, use_container_width=True)
+st.dataframe(dd_df, width='stretch')
 csv_download_button(dd_df, "drawdown_events.csv", "Download Drawdown Events CSV", key="dl_dd_csv")

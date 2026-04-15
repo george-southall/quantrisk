@@ -54,12 +54,12 @@ with tab_ff:
 
         st.plotly_chart(
             plot_factor_loadings(report_df, title=f"FF{n_factors} Factor Loadings"),
-            use_container_width=True,
+            width='stretch',
         )
 
         st.subheader("Regression Output")
         display_df = report_df[["loading", "t_stat", "p_value", "significant", "description"]]
-        st.dataframe(display_df, use_container_width=True)
+        st.dataframe(display_df, width='stretch')
         csv_download_button(display_df, f"ff{n_factors}_loadings.csv", "Download Factor Loadings CSV", key="dl_ff_csv")
 
         st.subheader("Performance Attribution")
@@ -67,7 +67,7 @@ with tab_ff:
         summary = attr.summary()
         st.plotly_chart(
             plot_attribution_waterfall(summary, title="Annualised Return Attribution"),
-            use_container_width=True,
+            width='stretch',
         )
 
         st.subheader("Monthly Attribution")
@@ -76,7 +76,7 @@ with tab_ff:
                         if c not in ("actual_excess_return", "rf", "actual_total_return")]
         st.dataframe(
             monthly_attr[display_cols].style.format("{:.2%}"),
-            use_container_width=True,
+            width='stretch',
         )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -102,13 +102,13 @@ with tab_pca:
             pca.explained_variance_ratio,
             title="PCA Explained Variance",
         ),
-        use_container_width=True,
+        width='stretch',
     )
 
     st.subheader("Factor Loadings (asset × PC)")
     st.dataframe(
         pca.loadings.style.background_gradient(cmap="RdBu_r", axis=None),
-        use_container_width=True,
+        width='stretch',
     )
 
     st.subheader("Portfolio Factor Exposures")
@@ -116,5 +116,5 @@ with tab_pca:
     exposures = pca.portfolio_factor_exposures(w)
     st.dataframe(
         exposures.to_frame("Exposure").style.format("{:.4f}"),
-        use_container_width=True,
+        width='stretch',
     )

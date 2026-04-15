@@ -120,7 +120,7 @@ else:
         .format(format_map, na_rep="—")
         .map(_colour_pnl, subset=["Unrealised P&L", "P&L %"])
     )
-    st.dataframe(styled, use_container_width=True, hide_index=True)
+    st.dataframe(styled, width='stretch', hide_index=True)
     csv_download_button(df, "holdings.csv", "Download Holdings CSV", key="dl_holdings")
 
 st.markdown("---")
@@ -187,7 +187,7 @@ if not value_series.empty and len(value_series) > 1:
         legend=dict(orientation="h", y=1.05),
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     chart_download_button(fig, "portfolio_value.html", "Download Chart", key="dl_val_chart")
 
     col_a, col_b, col_c = st.columns(3)
@@ -220,7 +220,7 @@ st.dataframe(
         "Price / Share": lambda x: f"£{x:.4f}" if pd.notna(x) else "—",
         "Total (GBP)": lambda x: f"£{x:+,.2f}" if pd.notna(x) else "—",
     }),
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
 )
 csv_download_button(tx_df, "transactions.csv", "Download Transaction History CSV", key="dl_tx_csv")

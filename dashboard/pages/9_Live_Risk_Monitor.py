@@ -33,7 +33,7 @@ with col_hdr:
     st.caption(f"Last refreshed: {st.session_state['live_refreshed_at'].strftime('%Y-%m-%d %H:%M:%S')}")
 
 with col_btn:
-    if st.button("Refresh Now", use_container_width=True):
+    if st.button("Refresh Now", width='stretch'):
         st.cache_resource.clear()
         st.session_state["live_refreshed_at"] = datetime.now()
         st.rerun()
@@ -138,12 +138,12 @@ if portfolio.benchmark_returns is not None:
 
 st.plotly_chart(
     plot_cumulative_returns(recent_dict, title=f"Cumulative Returns — last {lookback} days"),
-    use_container_width=True,
+    width='stretch',
 )
 
 st.plotly_chart(
     plot_drawdown(recent_returns, title=f"Drawdown — last {lookback} days"),
-    use_container_width=True,
+    width='stretch',
 )
 
 # ── VaR term structure ────────────────────────────────────────────────────────
@@ -156,4 +156,4 @@ for h in horizons:
     v = historical_var(returns.tail(252), confidence=0.95, horizon=h)
     var_rows.append({"Horizon (days)": h, "VaR (%)": f"{v:.2%}", "VaR ($1k)": f"${v * 1000:.2f}"})
 
-st.dataframe(pd.DataFrame(var_rows), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(var_rows), width='stretch', hide_index=True)

@@ -60,7 +60,7 @@ c4.metric("Monte Carlo VaR",  f"{mc_var:.2%}")
 # ── CVaR ───────────────────────────────────────────────────────────────────────
 st.subheader("CVaR / Expected Shortfall")
 cvar_df = cvar_summary(returns)
-st.dataframe(cvar_df, use_container_width=True)
+st.dataframe(cvar_df, width='stretch')
 csv_download_button(cvar_df, "cvar_summary.csv", "Download CVaR CSV", key="dl_cvar_csv")
 
 st.markdown("---")
@@ -74,7 +74,7 @@ for conf in [0.95, 0.99]:
 
 var_table = pd.DataFrame(var_rows)
 var_fig = plot_var_comparison(var_table, title=f"VaR Comparison ({horizon}-day horizon)")
-st.plotly_chart(var_fig, use_container_width=True)
+st.plotly_chart(var_fig, width='stretch')
 col_a, col_b = st.columns(2)
 with col_a:
     csv_download_button(var_table, "var_comparison.csv", "Download VaR Table CSV", key="dl_var_csv")
@@ -88,7 +88,7 @@ var_lines = {
 }
 st.plotly_chart(
     plot_return_distribution(returns, var_levels=var_lines, title="Return Distribution with VaR"),
-    use_container_width=True,
+    width='stretch',
 )
 
 # ── Monte Carlo paths ──────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ with st.spinner("Simulating paths…"):
 
 st.plotly_chart(
     plot_mc_paths(paths, mc_horizon, confidence, title="Monte Carlo Portfolio Paths"),
-    use_container_width=True,
+    width='stretch',
 )
 
 c1, c2, c3, c4 = st.columns(4)

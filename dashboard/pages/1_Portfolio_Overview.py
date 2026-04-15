@@ -94,20 +94,20 @@ with left:
         returns_dict[portfolio.benchmark] = portfolio.benchmark_returns
     st.plotly_chart(
         plot_cumulative_returns(returns_dict, title="Cumulative Returns vs Benchmark"),
-        use_container_width=True,
+        width='stretch',
     )
 
 with right:
     st.plotly_chart(
         plot_weights_pie(portfolio.weights, title="Portfolio Weights"),
-        use_container_width=True,
+        width='stretch',
     )
 
 # ── Rolling stats ──────────────────────────────────────────────────────────────
 rolling = portfolio.rolling_stats(window=252)
 st.plotly_chart(
     plot_rolling_stats(rolling, title="Rolling Statistics (252-day window)"),
-    use_container_width=True,
+    width='stretch',
 )
 
 # ── Full metrics table ─────────────────────────────────────────────────────────
@@ -132,5 +132,5 @@ if "beta" in metrics:
 
 st.dataframe(
     pd.DataFrame.from_dict(rows, orient="index", columns=["Value"]),
-    use_container_width=True,
+    width='stretch',
 )
