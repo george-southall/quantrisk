@@ -1,15 +1,14 @@
 """
 Transaction Portfolio — import real broker data and track actual P&L.
 
-Accepts Trading 212 CSV exports (Stocks ISA). Upload one or more files to see:
-  • Current holdings with cost basis and unrealised P&L
-  • Portfolio value over time
-  • Full transaction history
+Defaults to the synthetic demo portfolio so the app works out-of-the-box.
+Upload your own Trading 212 CSV to switch to your real data.
 """
 
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -27,43 +26,74 @@ from quantrisk.portfolio.transactions import TransactionPortfolio
 
 st.title("Transaction Portfolio")
 st.markdown(
-    "Import your actual broker data to track real P&L — "
+    "Track real P&L from actual broker transactions — "
     "not model weights, but what you actually bought and at what price."
 )
 st.markdown("---")
 
-# ── File upload ────────────────────────────────────────────────────────────────
-st.subheader("Upload Trading 212 Export")
-st.caption(
-    "Export from Trading 212 → History → Download CSV. "
-    "You can upload multiple files (e.g. Stocks ISA + multiple date ranges) — "
-    "duplicates are removed automatically."
-)
+# ── Data source selection ──────────────────────────────────────────────────────
+DEMO_PATH = Path(__file__).resolve().parents[2] / "data" / "demo_transactions.csv"
+demo_available = DEMO_PATH.exists()
 
-uploaded = st.file_uploader(
-    "Choose CSV file(s)",
-    type="csv",
-    accept_multiple_files=True,
-    key="tx_upload",
-)
-
-if not uploaded:
-    st.info(
-        "Upload a Trading 212 CSV export above to get started. "
-        "Go to **History → Download CSV** in the Trading 212 app."
+col_src1, col_src2 = st.columns([3, 1])
+with col_src1:
+    use_demo = st.toggle(
+        "Use demo portfolio",
+        value=demo_available,
+        disabled=not demo_available,
+        help=(
+            "A synthetic 3-year, 16-asset portfolio generated from real historical prices. "
+            "Toggle off to upload your own Trading 212 export."
+        ),
     )
-    st.stop()
 
-# ── Parse transactions ─────────────────────────────────────────────────────────
-try:
-    sources = [io.StringIO(f.getvalue().decode("utf-8")) for f in uploaded]
-    transactions = load_multiple_csvs(sources)
-except Exception as exc:
-    st.error(f"Could not parse CSV: {exc}")
-    st.stop()
+with col_src2:
+    if demo_available:
+        with open(DEMO_PATH, "rb") as fh:
+            st.download_button(
+                "Download demo CSV",
+                data=fh,
+                file_name="demo_transactions.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+
+# ── Load transactions ──────────────────────────────────────────────────────────
+if use_demo and demo_available:
+    st.info(
+        "Showing the **synthetic demo portfolio** — 3 years, 16 assets, real historical prices. "
+        "Toggle *Use demo portfolio* off (above) to upload your own Trading 212 CSV.",
+        icon="ℹ️",
+    )
+    try:
+        transactions = load_multiple_csvs([str(DEMO_PATH)])
+    except Exception as exc:
+        st.error(f"Could not load demo data: {exc}")
+        st.stop()
+else:
+    st.subheader("Upload Your Trading 212 Export")
+    st.caption(
+        "Go to **History → Download CSV** in the Trading 212 app. "
+        "You can upload multiple files — duplicates are removed automatically."
+    )
+    uploaded = st.file_uploader(
+        "Choose CSV file(s)",
+        type="csv",
+        accept_multiple_files=True,
+        key="tx_upload",
+    )
+    if not uploaded:
+        st.info("Upload a Trading 212 CSV export above to get started.")
+        st.stop()
+    try:
+        sources = [io.StringIO(f.getvalue().decode("utf-8")) for f in uploaded]
+        transactions = load_multiple_csvs(sources)
+    except Exception as exc:
+        st.error(f"Could not parse CSV: {exc}")
+        st.stop()
 
 if not transactions:
-    st.warning("No transactions found in the uploaded file(s).")
+    st.warning("No transactions found.")
     st.stop()
 
 portfolio = TransactionPortfolio(transactions, base_currency="GBP")
@@ -106,16 +136,16 @@ total_realised = sum(portfolio.realised_pnl().values())
 total_return_pct = portfolio.total_return(current_prices)
 
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Total Deposited", f"£{total_deposited:,.2f}")
+c1.metric("Total Deposited", f"£{total_deposited:,.0f}")
 c2.metric(
     "Portfolio Value",
-    f"£{portfolio_value:,.2f}",
-    delta=f"£{portfolio_value - total_deposited:+,.2f}",
+    f"£{portfolio_value:,.0f}",
+    delta=f"£{portfolio_value - total_deposited:+,.0f}",
 )
-c3.metric("Cash Balance", f"£{cash_balance:,.2f}")
+c3.metric("Cash Balance", f"£{cash_balance:,.0f}")
 c4.metric(
     "Unrealised P&L",
-    f"£{total_upnl:+,.2f}",
+    f"£{total_upnl:+,.0f}",
     delta=f"{total_upnl / (total_deposited or 1):.2%}",
     delta_color="normal",
 )
@@ -126,7 +156,7 @@ c5.metric(
 )
 
 if total_realised != 0:
-    st.caption(f"Realised P&L from closed positions: £{total_realised:+,.2f}")
+    st.caption(f"Realised P&L from closed/trimmed positions: £{total_realised:+,.2f}")
 
 st.markdown("---")
 
@@ -138,7 +168,6 @@ if not holdings:
 else:
     df = portfolio.holdings_df(current_prices)
 
-    # Style the dataframe
     def _colour_pnl(val):
         if val is None or (isinstance(val, float) and pd.isna(val)):
             return ""
@@ -169,7 +198,6 @@ st.subheader("Portfolio Value Over Time")
 
 @st.cache_data(ttl=300, show_spinner="Building value history…")
 def _value_history(tx_hash: int) -> pd.Series:
-    """Reconstruct portfolio value history. Cached by transaction fingerprint."""
     currencies = {}
     for tx in transactions:
         if tx.ticker and tx.price_currency:
@@ -187,7 +215,6 @@ value_series = _value_history(tx_hash)
 if not value_series.empty and len(value_series) > 1:
     fig = go.Figure()
 
-    # Portfolio value line
     fig.add_trace(go.Scatter(
         x=value_series.index,
         y=value_series.values,
@@ -198,7 +225,6 @@ if not value_series.empty and len(value_series) > 1:
         fillcolor="rgba(33,150,243,0.08)",
     ))
 
-    # Horizontal line for total deposited
     fig.add_hline(
         y=total_deposited,
         line=dict(color="grey", dash="dash", width=1),
@@ -206,25 +232,25 @@ if not value_series.empty and len(value_series) > 1:
         annotation_position="bottom right",
     )
 
-    # Mark each buy transaction
     buy_txs = [tx for tx in transactions if tx.action in {"Market buy", "Limit buy"}]
-    if buy_txs:
-        buy_dates = [pd.Timestamp(tx.date.date()) for tx in buy_txs]
-        buy_values = [
-            value_series.get(d, value_series.asof(d)) for d in buy_dates
-        ]
-        fig.add_trace(go.Scatter(
-            x=buy_dates,
-            y=buy_values,
-            mode="markers",
-            name="Buy",
-            marker=dict(symbol="triangle-up", size=10, color="#00CC96"),
-        ))
+    sell_txs = [tx for tx in transactions if tx.action in {"Market sell", "Limit sell"}]
+
+    for tx_list, symbol, colour, label in [
+        (buy_txs,  "triangle-up",   "#00CC96", "Buy"),
+        (sell_txs, "triangle-down", "#EF553B", "Sell"),
+    ]:
+        if tx_list:
+            dates = [pd.Timestamp(tx.date.date()) for tx in tx_list]
+            vals = [value_series.asof(d) for d in dates]
+            fig.add_trace(go.Scatter(
+                x=dates, y=vals, mode="markers", name=label,
+                marker=dict(symbol=symbol, size=7, color=colour),
+            ))
 
     fig.update_layout(
         xaxis=dict(title="Date"),
         yaxis=dict(title="Value (£)", tickprefix="£", tickformat=",.0f"),
-        height=400,
+        height=420,
         margin=dict(t=30, b=40),
         legend=dict(orientation="h", y=1.05),
     )
@@ -232,21 +258,14 @@ if not value_series.empty and len(value_series) > 1:
     st.plotly_chart(fig, use_container_width=True)
     chart_download_button(fig, "portfolio_value.html", "Download Chart", key="dl_val_chart")
 
-    # Simple return table
-    first_val = value_series.iloc[0]
-    last_val = value_series.iloc[-1]
-    n_days = (value_series.index[-1] - value_series.index[0]).days
-
     col_a, col_b, col_c = st.columns(3)
-    col_a.metric("Starting Value", f"£{first_val:,.2f}")
-    col_b.metric("Current Value",  f"£{last_val:,.2f}")
-    col_c.metric("Period", f"{n_days} days")
+    col_a.metric("Starting Value", f"£{value_series.iloc[0]:,.0f}")
+    col_b.metric("Current Value",  f"£{value_series.iloc[-1]:,.0f}")
+    n_days = (value_series.index[-1] - value_series.index[0]).days
+    col_c.metric("Period", f"{n_days} days ({n_days // 365}y {(n_days % 365) // 30}m)")
 
 elif len(value_series) <= 1:
-    st.info(
-        "Not enough price history to draw a chart yet — "
-        "come back after a few trading days."
-    )
+    st.info("Not enough price history to draw a chart yet.")
 else:
     st.warning("Could not fetch price history for chart.")
 
@@ -256,14 +275,11 @@ st.markdown("---")
 st.subheader("Transaction History")
 
 tx_df = portfolio.transaction_df()
-
-# Summary stats in caption
-n_buys = (tx_df["Action"].str.contains("buy", case=False)).sum()
-n_sells = (tx_df["Action"].str.contains("sell", case=False)).sum()
-n_deposits = (tx_df["Action"] == "Deposit").sum()
+n_buys  = tx_df["Action"].str.contains("buy",  case=False).sum()
+n_sells = tx_df["Action"].str.contains("sell", case=False).sum()
+n_deps  = (tx_df["Action"] == "Deposit").sum()
 st.caption(
-    f"{len(tx_df)} total transactions — "
-    f"{n_buys} buys, {n_sells} sells, {n_deposits} deposits"
+    f"{len(tx_df)} total — {n_buys} buys, {n_sells} sells, {n_deps} deposits"
 )
 
 st.dataframe(
