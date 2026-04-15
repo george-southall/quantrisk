@@ -26,7 +26,7 @@ st.subheader("Historical Scenario Summary")
 summary_df = run_all_scenarios(weights)
 st.plotly_chart(
     plot_scenario_bars(summary_df, title="Portfolio P&L Under Historical Stress Scenarios"),
-    use_container_width=True,
+    width='stretch',
 )
 
 # ── Scenario detail ────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ with c2:
     detail_df["weight"]          = detail_df["weight"].map("{:.1%}".format)
     detail_df["shock"]           = detail_df["shock"].map("{:.1%}".format)
     detail_df["pl_contribution"] = detail_df["pl_contribution"].map("{:.2%}".format)
-    st.dataframe(detail_df[["ticker", "weight", "shock", "pl_contribution"]], use_container_width=True)
+    st.dataframe(detail_df[["ticker", "weight", "shock", "pl_contribution"]], width='stretch')
 
 st.markdown("---")
 
@@ -88,6 +88,6 @@ if shock_inputs:
          "p&l": f"{hyp_result.ticker_pl[t]:.2%}"}
         for t in weights
     ])
-    st.dataframe(hyp_df, use_container_width=True)
+    st.dataframe(hyp_df, width='stretch')
 else:
     st.info("Set at least one non-zero shock above to run the analysis.")

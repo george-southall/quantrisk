@@ -60,7 +60,7 @@ with st.expander("Optimisation settings", expanded=True):
     )
     max_weight = max_wt_pct / 100.0
 
-if st.button("Run Optimisation", type="primary", use_container_width=True):
+if st.button("Run Optimisation", type="primary", width='stretch'):
     asset_returns = portfolio.asset_returns.dropna()
 
     with st.spinner("Computing efficient frontier…"):
@@ -340,7 +340,7 @@ fig = _build_frontier_chart(
     rf=rf_rate_stored,
     target_port=target_port,
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 col_a, col_b = st.columns(2)
 with col_a:
     csv_download_button(
@@ -404,13 +404,13 @@ def _weights_chart_and_table(weights: dict, title: str) -> None:
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(bar_fig, use_container_width=True)
+    st.plotly_chart(bar_fig, width='stretch')
 
     table_df = pd.DataFrame({
         "Asset": list(weights.keys()),
         "Weight": [f"{v:.2%}" for v in weights.values()],
     }).sort_values("Weight", ascending=False).reset_index(drop=True)
-    st.dataframe(table_df, use_container_width=True, hide_index=True)
+    st.dataframe(table_df, width='stretch', hide_index=True)
 
 
 with tab_ms:

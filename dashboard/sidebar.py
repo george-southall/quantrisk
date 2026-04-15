@@ -87,7 +87,7 @@ def render_sidebar() -> Portfolio:
         st.subheader("Settings")
         benchmark = st.text_input("Benchmark", value="SPY").upper().strip()
 
-        if st.button("Reload data", use_container_width=True):
+        if st.button("Reload data", width='stretch'):
             st.cache_resource.clear()
             st.cache_data.clear()
             st.rerun()

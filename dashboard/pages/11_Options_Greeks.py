@@ -144,7 +144,7 @@ st.plotly_chart(
         x_label=x_axis_label,
         title=f"{option_type.capitalize()} Price Surface — Strike ${strike:.0f}",
     ),
-    use_container_width=True,
+    width='stretch',
 )
 
 # ── Sensitivity table ──────────────────────────────────────────────────────────
@@ -166,4 +166,4 @@ for s in spot_range_abs:
         "Theta/day": f"${g['theta']:.4f}",
     })
 
-st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
